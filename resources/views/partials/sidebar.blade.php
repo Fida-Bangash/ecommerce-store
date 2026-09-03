@@ -25,6 +25,21 @@
       </ul>
     </div>
 
+    {{-- Group: Catalog --}}
+    <div class="sidebar-menu-section">
+      <div class="sidebar-menu-title">Catalog</div>
+      <ul class="sidebar-menu-list">
+        <li class="sidebar-menu-item">
+          <a href="{{ route('categories.index') }}"
+             class="sidebar-menu-link {{ request()->routeIs('categories.*') ? 'active' : '' }}"
+             id="menu-categories" title="Category Management">
+            <i class="bi bi-tags-fill"></i>
+            <span>Categories</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+
     {{-- Group: Components --}}
     {{-- <div class="sidebar-menu-section">
       <div class="sidebar-menu-title">Components</div>

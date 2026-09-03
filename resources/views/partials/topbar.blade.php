@@ -12,7 +12,7 @@
     </button>
 
     {{-- Quick Actions Dropdown --}}
-    <div class="dropdown ms-2">
+    {{-- <div class="dropdown ms-2">
       <button class="btn-quick-action dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false"
         id="quick-actions-dropdown">
         <i class="bi bi-plus-lg"></i>
@@ -28,7 +28,7 @@
         </li>
         <li><a class="dropdown-item" href="#"><i class="bi bi-gear"></i> System Settings</a></li>
       </ul>
-    </div>
+    </div> --}}
   </div>
 
   {{-- Mid navbar: search pill --}}
