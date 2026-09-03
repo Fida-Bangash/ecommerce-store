@@ -29,7 +29,14 @@
 
 <body>
 
+  @include('partials.icon-sprite')
+  @include('partials.site-header')
+
   @yield('content')
+
+  @include('partials.site-footer')
+
+  @include('partials.confirm-modal')
 
   <script src="{{ asset('frontend/js/jquery-1.11.0.min.js') }}"></script>
   <script src="https://cdn.jsdelivr.net/npm/swiper@9/swiper-bundle.min.js"></script>

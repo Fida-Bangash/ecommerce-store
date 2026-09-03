@@ -9,9 +9,13 @@ use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\VerifyEmailController;
+use App\Http\Controllers\CartController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\OrderController;
+use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -21,6 +25,32 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::get('/shop', [HomeController::class, 'shop'])->name('shop');
+Route::get('/product/{product:slug}', [ProductController::class, 'show'])->name('product.show');
+
+/*
+|--------------------------------------------------------------------------
+| Cart Routes (Customer Side — works for guest and logged-in customers)
+|--------------------------------------------------------------------------
+*/
+Route::prefix('cart')->name('cart.')->group(function () {
+    Route::get('/', [CartController::class, 'index'])->name('index');
+    Route::post('/', [CartController::class, 'store'])->name('store');
+    Route::patch('/{cartItem}', [CartController::class, 'update'])->name('update');
+    Route::delete('/{cartItem}', [CartController::class, 'destroy'])->name('destroy');
+    Route::delete('/', [CartController::class, 'clear'])->name('clear');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Checkout Routes (Customer Side — works for guest and logged-in customers)
+|--------------------------------------------------------------------------
+*/
+Route::prefix('checkout')->name('checkout.')->group(function () {
+    Route::get('/', [CheckoutController::class, 'index'])->name('index');
+    Route::post('/', [CheckoutController::class, 'store'])->name('store');
+    Route::get('/success/{order}', [CheckoutController::class, 'success'])->name('success');
+});
 
 /*
 |--------------------------------------------------------------------------
@@ -116,5 +146,24 @@ Route::prefix('admin_dash')->group(function () {
         |------------------------------------------------------------------
         */
         Route::resource('categories', CategoryController::class)->except(['show']);
+
+        /*
+        |------------------------------------------------------------------
+        | Product Management Routes
+        |------------------------------------------------------------------
+        */
+        Route::resource('products', ProductController::class)->except(['show']);
+        Route::patch('/products/{product}/add-stock', [ProductController::class, 'addStock'])->name('products.add-stock');
+        Route::get('/products/{product}/stock-history', [ProductController::class, 'stockHistory'])->name('products.stock-history');
+
+        /*
+        |------------------------------------------------------------------
+        | Order Management Routes
+        |------------------------------------------------------------------
+        */
+        Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
+        Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
+        Route::patch('/orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
+        Route::patch('/orders/{order}/refund', [OrderController::class, 'refund'])->name('orders.refund');
     });
 });

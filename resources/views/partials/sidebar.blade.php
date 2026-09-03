@@ -37,6 +37,29 @@
             <span>Categories</span>
           </a>
         </li>
+        <li class="sidebar-menu-item">
+          <a href="{{ route('products.index') }}"
+             class="sidebar-menu-link {{ request()->routeIs('products.*') ? 'active' : '' }}"
+             id="menu-products" title="Product Management">
+            <i class="bi bi-box-seam-fill"></i>
+            <span>Products</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    {{-- Group: Sales --}}
+    <div class="sidebar-menu-section">
+      <div class="sidebar-menu-title">Sales</div>
+      <ul class="sidebar-menu-list">
+        <li class="sidebar-menu-item">
+          <a href="{{ route('orders.index') }}"
+             class="sidebar-menu-link {{ request()->routeIs('orders.*') ? 'active' : '' }}"
+             id="menu-orders" title="Order Management">
+            <i class="bi bi-receipt"></i>
+            <span>Orders</span>
+          </a>
+        </li>
       </ul>
     </div>
 
