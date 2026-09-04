@@ -80,7 +80,19 @@
         {{-- Product Info --}}
         <div class="col-lg-6">
             <span class="text-uppercase text-muted small" style="letter-spacing:.05em;">{{ $product->category->name }}</span>
-            <h1 class="fs-2 fw-bold mt-1 mb-3">{{ $product->name }}</h1>
+            <h1 class="fs-2 fw-bold mt-1 mb-2">{{ $product->name }}</h1>
+
+            <a href="#reviews" class="d-inline-flex align-items-center gap-2 text-decoration-none text-dark mb-3">
+                <div class="d-flex gap-1 text-warning">
+                    @for ($i = 1; $i <= 5; $i++)
+                        <svg width="14" height="14"><use href="{{ $i <= round($product->average_rating) ? '#star-solid' : '#star-outline' }}"></use></svg>
+                    @endfor
+                </div>
+                <span class="text-muted small">
+                    {{ number_format($product->average_rating, 1) }}
+                    ({{ $product->reviews_count }} {{ \Illuminate\Support\Str::plural('review', $product->reviews_count) }})
+                </span>
+            </a>
 
             <div class="d-flex align-items-baseline gap-3 mb-3">
                 <span class="fs-3 fw-bold text-dark" id="product-price">
@@ -182,6 +194,104 @@
             </div>
         </div>
     @endif
+
+    {{-- Customer Reviews --}}
+    <div class="mt-5 pt-5 border-top" id="reviews">
+        <div class="row g-5">
+
+            {{-- Rating Summary & Review Form --}}
+            <div class="col-lg-4">
+                <h3 class="fs-4 fw-bold mb-3">Customer Reviews</h3>
+
+                <div class="d-flex align-items-center gap-3 mb-4">
+                    <span class="fs-1 fw-bold">{{ number_format($product->average_rating, 1) }}</span>
+                    <div>
+                        <div class="d-flex gap-1 text-warning mb-1">
+                            @for ($i = 1; $i <= 5; $i++)
+                                <svg width="16" height="16"><use href="{{ $i <= round($product->average_rating) ? '#star-solid' : '#star-outline' }}"></use></svg>
+                            @endfor
+                        </div>
+                        <span class="text-muted small">
+                            Based on {{ $product->reviews_count }} {{ \Illuminate\Support\Str::plural('review', $product->reviews_count) }}
+                        </span>
+                    </div>
+                </div>
+
+                <hr class="mb-4">
+
+                <h5 class="fs-6 fw-bold mb-3">Write a Review</h5>
+
+                <form action="{{ route('reviews.store', $product) }}" method="POST">
+                    @csrf
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small d-block">Your Rating</label>
+                        <fieldset class="star-rating-input">
+                            <input type="radio" id="star5" name="rating" value="5" {{ old('rating') == 5 ? 'checked' : '' }}>
+                            <label for="star5" title="5 stars">&#9733;</label>
+                            <input type="radio" id="star4" name="rating" value="4" {{ old('rating') == 4 ? 'checked' : '' }}>
+                            <label for="star4" title="4 stars">&#9733;</label>
+                            <input type="radio" id="star3" name="rating" value="3" {{ old('rating') == 3 ? 'checked' : '' }}>
+                            <label for="star3" title="3 stars">&#9733;</label>
+                            <input type="radio" id="star2" name="rating" value="2" {{ old('rating') == 2 ? 'checked' : '' }}>
+                            <label for="star2" title="2 stars">&#9733;</label>
+                            <input type="radio" id="star1" name="rating" value="1" {{ old('rating') == 1 ? 'checked' : '' }}>
+                            <label for="star1" title="1 star">&#9733;</label>
+                        </fieldset>
+                        @error('rating')
+                            <div class="text-danger small mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="reviewer_name" class="form-label fw-semibold small">Name</label>
+                        <input type="text" name="reviewer_name" id="reviewer_name"
+                               class="form-control @error('reviewer_name') is-invalid @enderror"
+                               value="{{ old('reviewer_name', auth()->user()->name ?? '') }}" required>
+                        @error('reviewer_name')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="comment" class="form-label fw-semibold small">Your Review</label>
+                        <textarea name="comment" id="comment" rows="4"
+                                  class="form-control @error('comment') is-invalid @enderror" required>{{ old('comment') }}</textarea>
+                        @error('comment')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <button type="submit" class="btn btn-dark rounded-pill px-4">Submit Review</button>
+                </form>
+            </div>
+
+            {{-- Approved Reviews List --}}
+            <div class="col-lg-8">
+                @forelse ($product->approvedReviews as $review)
+                    <div class="d-flex gap-3 mb-4 pb-4 border-bottom">
+                        <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light flex-shrink-0" style="width:44px;height:44px;">
+                            <svg width="18" height="18"><use href="#user"></use></svg>
+                        </span>
+                        <div>
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <strong>{{ $review->reviewer_name }}</strong>
+                                <span class="text-muted small">{{ $review->created_at->format('d M Y') }}</span>
+                            </div>
+                            <div class="d-flex gap-1 text-warning mb-2">
+                                @for ($i = 1; $i <= 5; $i++)
+                                    <svg width="14" height="14"><use href="{{ $i <= $review->rating ? '#star-solid' : '#star-outline' }}"></use></svg>
+                                @endfor
+                            </div>
+                            <p class="text-muted mb-0">{{ $review->comment }}</p>
+                        </div>
+                    </div>
+                @empty
+                    <p class="text-muted">No reviews yet. Be the first to review this product!</p>
+                @endforelse
+            </div>
+        </div>
+    </div>
 
 </div>
 @endsection
@@ -327,6 +437,32 @@
     }
     .variant-option.btn-dark {
         border-color: #212529;
+    }
+    .star-rating-input {
+        display: inline-flex;
+        flex-direction: row-reverse;
+        border: none;
+        padding: 0;
+        margin: 0;
+    }
+    .star-rating-input input {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    .star-rating-input label {
+        font-size: 1.9rem;
+        line-height: 1;
+        color: #d8dade;
+        cursor: pointer;
+        padding: 0 .12rem;
+        transition: color .15s ease;
+    }
+    .star-rating-input input:checked ~ label,
+    .star-rating-input label:hover,
+    .star-rating-input label:hover ~ label {
+        color: #f5b301;
     }
 </style>
 @endpush

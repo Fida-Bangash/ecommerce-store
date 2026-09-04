@@ -47,7 +47,12 @@
                                              width="56" height="56"
                                              style="object-fit: cover; border-radius: 6px;">
                                     @endif
-                                    <span>{{ $item->product->name }}</span>
+                                    <div>
+                                        <span>{{ $item->product->name }}</span>
+                                        @if ($item->variant)
+                                            <div class="small text-muted">{{ $item->variant->label }}</div>
+                                        @endif
+                                    </div>
                                 </div>
                             </td>
 

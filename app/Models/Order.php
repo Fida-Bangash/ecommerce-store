@@ -95,11 +95,20 @@ class Order extends Model
 
     /**
      * Get the effective status for display purposes: "refunded"
-     * takes priority over the underlying status column once set.
+     * takes priority once the whole order has been refunded, and
+     * "partially_refunded" shows while only some line items have.
      */
     public function getDisplayStatusAttribute(): string
     {
-        return $this->refunded_at ? 'refunded' : $this->status;
+        if ($this->refunded_at) {
+            return 'refunded';
+        }
+
+        if ($this->hasAnyItemRefund()) {
+            return 'partially_refunded';
+        }
+
+        return $this->status;
     }
 
     /**
@@ -109,11 +118,43 @@ class Order extends Model
     {
         return match ($this->display_status) {
             'processing' => 'Processing',
+            'dispatched' => 'Dispatched',
             'completed' => 'Completed',
             'cancelled' => 'Cancelled',
             'refunded' => 'Refunded',
+            'partially_refunded' => 'Partially Refunded',
             default => 'Pending',
         };
+    }
+
+    /**
+     * Whether at least one line item on this order has had any
+     * quantity refunded (used to show the "Partially Refunded" state
+     * before every item has been fully refunded).
+     */
+    public function hasAnyItemRefund(): bool
+    {
+        return $this->items()->where('refunded_quantity', '>', 0)->exists();
+    }
+
+    /**
+     * Whether every line item on this order has now been fully
+     * refunded, meaning the order as a whole should count as refunded.
+     */
+    public function allItemsFullyRefunded(): bool
+    {
+        return $this->items()->count() > 0
+            && ! $this->items()->whereColumn('refunded_quantity', '<', 'quantity')->exists();
+    }
+
+    /**
+     * Whether individual line items on this order can currently be
+     * refunded by an admin: same eligibility window as a full-order
+     * refund (completed, and not already fully refunded).
+     */
+    public function canRefundItems(): bool
+    {
+        return $this->status === 'completed' && ! $this->refunded_at;
     }
 
     /**
@@ -122,7 +163,7 @@ class Order extends Model
      */
     public function canBeCancelled(): bool
     {
-        return in_array($this->status, ['pending', 'processing'], true) && ! $this->refunded_at;
+        return in_array($this->status, ['pending', 'processing', 'dispatched'], true) && ! $this->refunded_at;
     }
 
     /**
@@ -135,6 +176,39 @@ class Order extends Model
     }
 
     /**
+     * Get the map of statuses this order can currently be moved to,
+     * keyed by value with a human readable label. Used to build the
+     * "Change Status" dropdown on the admin orders page.
+     *
+     * @return array<string, string>
+     */
+    public function availableStatusOptions(): array
+    {
+        if ($this->refunded_at || $this->status === 'cancelled') {
+            return [];
+        }
+
+        return match ($this->status) {
+            'pending' => [
+                'processing' => 'Processing',
+                'cancelled' => 'Cancelled',
+            ],
+            'processing' => [
+                'dispatched' => 'Dispatched',
+                'cancelled' => 'Cancelled',
+            ],
+            'dispatched' => [
+                'completed' => 'Completed',
+                'cancelled' => 'Cancelled',
+            ],
+            'completed' => [
+                'refunded' => 'Refunded',
+            ],
+            default => [],
+        };
+    }
+
+    /**
      * Scope a query to filter orders by their effective status
      * ("refunded" is checked via the refunded_at column).
      */
@@ -142,6 +216,11 @@ class Order extends Model
     {
         if ($status === 'refunded') {
             return $query->whereNotNull('refunded_at');
+        }
+
+        if ($status === 'partially_refunded') {
+            return $query->whereNull('refunded_at')
+                ->whereHas('items', fn ($q) => $q->where('refunded_quantity', '>', 0));
         }
 
         return $query->where('status', $status)->whereNull('refunded_at');

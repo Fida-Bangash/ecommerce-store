@@ -20,6 +20,7 @@ class OrderItem extends Model
         'variant_label',
         'price',
         'quantity',
+        'refunded_quantity',
         'line_total',
     ];
 
@@ -33,8 +34,25 @@ class OrderItem extends Model
         return [
             'price' => 'decimal:2',
             'quantity' => 'integer',
+            'refunded_quantity' => 'integer',
             'line_total' => 'decimal:2',
         ];
+    }
+
+    /**
+     * How many units of this line item are still refundable.
+     */
+    public function remainingQuantity(): int
+    {
+        return max(0, $this->quantity - $this->refunded_quantity);
+    }
+
+    /**
+     * Whether every unit of this line item has already been refunded.
+     */
+    public function isFullyRefunded(): bool
+    {
+        return $this->refunded_quantity >= $this->quantity;
     }
 
     /**

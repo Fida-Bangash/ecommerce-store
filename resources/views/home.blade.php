@@ -38,7 +38,7 @@
 
             <div class="position-absolute top-50 start-0 translate-middle-y text-white px-4 px-md-5"
                  style="max-width: 600px;">
-                <h1 class="display-5 mb-3 text-white">Welcome to Spark</h1>
+                <h1 class="display-5 mb-3 text-white">Welcome to {{ config('app.name') }}</h1>
                 <p class="lead mb-4">Discover our full collection of quality products.</p>
                 <a href="{{ route('shop') }}" class="btn btn-light btn-lg px-4">Shop Now</a>
             </div>

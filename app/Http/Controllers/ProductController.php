@@ -103,7 +103,7 @@ class ProductController extends Controller
     {
         abort_unless($product->isActive(), 404);
 
-        $product->load(['images', 'category', 'variants']);
+        $product->load(['images', 'category', 'variants', 'approvedReviews']);
 
         $relatedProducts = Product::query()
             ->with(['images', 'category', 'variants'])

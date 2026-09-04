@@ -89,6 +89,24 @@ class Product extends Model
     }
 
     /**
+     * Get every review submitted for this product, regardless of
+     * approval status.
+     */
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(Review::class)->latest();
+    }
+
+    /**
+     * Get only the approved reviews for this product, the ones
+     * customers are allowed to see on the product page.
+     */
+    public function approvedReviews(): HasMany
+    {
+        return $this->hasMany(Review::class)->approved()->latest();
+    }
+
+    /**
      * Get the price that should actually be charged: the discount
      * price when one is set, otherwise the regular price.
      */
@@ -162,6 +180,24 @@ class Product extends Model
     public function getPrimaryImageUrlAttribute(): ?string
     {
         return $this->images->first()?->image_url;
+    }
+
+    /**
+     * Get the average star rating across all approved reviews,
+     * rounded to one decimal place. Returns 0 when there are no
+     * approved reviews yet.
+     */
+    public function getAverageRatingAttribute(): float
+    {
+        return round((float) $this->approvedReviews->avg('rating'), 1);
+    }
+
+    /**
+     * Get the total number of approved reviews for this product.
+     */
+    public function getReviewsCountAttribute(): int
+    {
+        return $this->approvedReviews->count();
     }
 
     /**

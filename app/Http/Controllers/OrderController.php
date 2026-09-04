@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Order;
+use App\Models\OrderItem;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -52,9 +53,11 @@ class OrderController extends Controller
         $order->load('items');
 
         return response()->json([
+            'order_id' => $order->id,
             'order_number' => $order->order_number,
             'status_label' => $order->status_label,
             'display_status' => $order->display_status,
+            'can_refund_items' => $order->canRefundItems(),
             'date' => $order->created_at->format('d M Y, h:i A'),
             'customer_name' => $order->customer_name,
             'customer_phone' => $order->customer_phone,
@@ -66,69 +69,128 @@ class OrderController extends Controller
             'subtotal' => number_format((float) $order->subtotal, 2),
             'total' => number_format((float) $order->total, 2),
             'items' => $order->items->map(fn ($item) => [
+                'id' => $item->id,
                 'name' => $item->product_name,
                 'variant' => $item->variant_label,
                 'quantity' => $item->quantity,
                 'price' => number_format((float) $item->price, 2),
                 'line_total' => number_format((float) $item->line_total, 2),
+                'refunded_quantity' => $item->refunded_quantity,
+                'remaining_quantity' => $item->remainingQuantity(),
             ]),
         ]);
     }
 
     /**
-     * Cancel the specified order and return its items' stock.
+     * Update the status of the specified order.
      *
-     * Only orders that are still "pending" or "processing" (i.e. not
-     * yet completed or refunded) may be cancelled.
+     * Handles every transition through one endpoint: simple forward
+     * moves (processing/dispatched/completed) just update the status
+     * column, while "cancelled" and "refunded" also restock the
+     * order's items and record which admin made the change.
      */
-    public function cancel(Order $order): RedirectResponse
+    public function updateStatus(Request $request, Order $order): RedirectResponse
     {
-        if (! $order->canBeCancelled()) {
+        $allowed = $order->availableStatusOptions();
+
+        $data = $request->validate([
+            'status' => ['required', 'string', 'in:'.implode(',', array_keys($allowed))],
+        ]);
+
+        $newStatus = $data['status'];
+
+        if (! array_key_exists($newStatus, $allowed)) {
             return redirect()
                 ->route('orders.index')
-                ->with('error', "Order \"{$order->order_number}\" can no longer be cancelled.");
+                ->with('error', "Order \"{$order->order_number}\" can't be moved to that status.");
         }
 
-        DB::transaction(function () use ($order) {
-            $this->restockItems($order);
+        DB::transaction(function () use ($order, $newStatus) {
+            if ($newStatus === 'cancelled') {
+                $this->restockItems($order);
+                $order->update([
+                    'status' => 'cancelled',
+                    'cancelled_by' => Auth::id(),
+                ]);
 
-            $order->update([
-                'status' => 'cancelled',
-                'cancelled_by' => Auth::id(),
-            ]);
+                return;
+            }
+
+            if ($newStatus === 'refunded') {
+                $this->restockItems($order);
+
+                foreach ($order->items as $item) {
+                    $item->update(['refunded_quantity' => $item->quantity]);
+                }
+
+                $order->update([
+                    'refunded_at' => now(),
+                    'refunded_by' => Auth::id(),
+                ]);
+
+                return;
+            }
+
+            $order->update(['status' => $newStatus]);
         });
+
+        $label = $allowed[$newStatus];
 
         return redirect()
             ->route('orders.index')
-            ->with('success', "Order \"{$order->order_number}\" has been cancelled and stock restored.");
+            ->with('success', "Order \"{$order->order_number}\" has been marked as {$label}.");
     }
 
     /**
-     * Refund the specified order and return its items' stock.
-     *
-     * Only "completed" orders that haven't already been refunded may
-     * be refunded.
+     * Refund a specific quantity of a single line item on an order,
+     * instead of refunding the whole order. Restocks only the units
+     * being refunded, and automatically marks the whole order as
+     * refunded once every line item has been fully refunded.
      */
-    public function refund(Order $order): RedirectResponse
+    public function refundItem(Request $request, Order $order, OrderItem $item): RedirectResponse
     {
-        if (! $order->canBeRefunded()) {
-            return redirect()
-                ->route('orders.index')
-                ->with('error', "Order \"{$order->order_number}\" is not eligible for a refund.");
+        if ($item->order_id !== $order->id) {
+            abort(404);
         }
 
-        DB::transaction(function () use ($order) {
-            $this->restockItems($order);
+        if (! $order->canRefundItems()) {
+            return redirect()
+                ->route('orders.index')
+                ->with('error', "Order \"{$order->order_number}\" isn't eligible for a refund.");
+        }
 
-            $order->update([
-                'refunded_at' => now(),
-                'refunded_by' => Auth::id(),
-            ]);
+        $remaining = $item->remainingQuantity();
+
+        $data = $request->validate([
+            'quantity' => ['required', 'integer', 'min:1', 'max:'.max($remaining, 1)],
+        ]);
+
+        if ($remaining < 1) {
+            return redirect()
+                ->route('orders.index')
+                ->with('error', "\"{$item->product_name}\" has already been fully refunded.");
+        }
+
+        $quantity = $data['quantity'];
+
+        DB::transaction(function () use ($order, $item, $quantity) {
+            $item->load('product', 'variant');
+            $this->restockQuantity($item, $quantity);
+            $item->increment('refunded_quantity', $quantity);
+
+            // Once every line item on the order has been fully
+            // refunded, treat the order itself as refunded.
+            if ($order->allItemsFullyRefunded()) {
+                $order->update([
+                    'refunded_at' => now(),
+                    'refunded_by' => Auth::id(),
+                ]);
+            }
         });
 
         return redirect()
             ->route('orders.index')
-            ->with('success', "Order \"{$order->order_number}\" has been marked as refunded and stock restored.");
+            ->with('success', "Refunded {$quantity} x \"{$item->product_name}\" on order \"{$order->order_number}\".");
     }
 
     /**
@@ -140,11 +202,21 @@ class OrderController extends Controller
         $order->load('items.product', 'items.variant');
 
         foreach ($order->items as $item) {
-            if ($item->variant) {
-                $item->variant->increment('stock_quantity', $item->quantity);
-            } elseif ($item->product) {
-                $item->product->increment('stock_quantity', $item->quantity);
-            }
+            $this->restockQuantity($item, $item->quantity);
+        }
+    }
+
+    /**
+     * Add the given quantity back to a line item's product/variant
+     * stock. Assumes the item's "product" and "variant" relations
+     * are already loaded.
+     */
+    private function restockQuantity(OrderItem $item, int $quantity): void
+    {
+        if ($item->variant) {
+            $item->variant->increment('stock_quantity', $quantity);
+        } elseif ($item->product) {
+            $item->product->increment('stock_quantity', $quantity);
         }
     }
 }

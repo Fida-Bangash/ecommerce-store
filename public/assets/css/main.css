@@ -2321,6 +2321,60 @@ span.flatpickr-weekday {
     background-color: #6B7280;
 }
 
+.badge-table.accent {
+    background-color: rgba(20, 184, 166, 0.1);
+    color: #14B8A6;
+}
+.badge-table.accent::before {
+    background-color: #14B8A6;
+}
+
+/* Order Details modal cards */
+.order-detail-card {
+    background-color: var(--bs-body-bg);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    padding: 1rem 1.25rem;
+    height: 100%;
+}
+
+.order-detail-card-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--text-main);
+}
+
+.order-detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.35rem 0;
+    border-bottom: 1px dashed var(--border-light);
+    font-size: 0.9rem;
+}
+
+.order-detail-row:last-child {
+    border-bottom: none;
+}
+
+.order-detail-row span {
+    color: var(--text-muted-green);
+}
+
+.order-summary-box {
+    background-color: var(--bs-body-bg);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    padding: 0.85rem 1.25rem;
+    min-width: 260px;
+    font-size: 0.9rem;
+}
+
 /* Table Controls Top bar */
 .table-header-control {
     background-color: #FFFFFF;

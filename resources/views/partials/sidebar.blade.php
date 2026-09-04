@@ -63,6 +63,21 @@
       </ul>
     </div>
 
+    {{-- Group: Engagement --}}
+    <div class="sidebar-menu-section">
+      <div class="sidebar-menu-title">Engagement</div>
+      <ul class="sidebar-menu-list">
+        <li class="sidebar-menu-item">
+          <a href="{{ route('reviews.index') }}"
+             class="sidebar-menu-link {{ request()->routeIs('reviews.*') ? 'active' : '' }}"
+             id="menu-reviews" title="Reviews & Ratings">
+            <i class="bi bi-star-fill"></i>
+            <span>Reviews</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+
     {{-- Group: Components --}}
     {{-- <div class="sidebar-menu-section">
       <div class="sidebar-menu-title">Components</div>
